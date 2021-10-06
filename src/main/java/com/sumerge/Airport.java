@@ -52,7 +52,7 @@ class Person {
 		this.allergies = allergies;
 	}
 
-	public String getId(Object o) {
+	public String getId() {
 		return id;
 	}
 
@@ -60,53 +60,77 @@ class Person {
 	@Restriction(permission = RestrictionType.IMMIGRATION)
 	@Restriction(permission = RestrictionType.HEALTH)
 	@Restriction(permission = RestrictionType.CONDUCTOR)
-	public String getName(Object o) {
+	public String getName() {
 		return name;
 	}
 
 	@Restriction(permission = RestrictionType.IMMIGRATION)
 	@Restriction(permission = RestrictionType.HEALTH)
-	public String getLastVisitedPlace(Object o) {
+	public String getLastVisitedPlace() {
 		return lastVisitedPlace;
 	}
 
 	@Restriction(permission = RestrictionType.HEALTH)
 	@Restriction(permission = RestrictionType.CONDUCTOR)
-	public boolean isHasFever(Object o) {
+	public boolean isHasFever() {
 		return hasFever;
 	}
 
 	@Restriction(permission = RestrictionType.HEALTH)
 	@Restriction(permission = RestrictionType.CONDUCTOR)
-	public boolean isHasCough(Object o) {
+	public boolean isHasCough() {
 		return hasCough;
 	}
 
 	@Restriction(permission = RestrictionType.PORT)
 	@Restriction(permission = RestrictionType.IMMIGRATION)
 	@Restriction(permission = RestrictionType.HEALTH)
-	public boolean isResultPCR(Object o) {
+	public boolean isResultPCR() {
 		return resultPCR;
 	}
 
-	public boolean isHasDisability(Object o) {
+	public void setResultPCR(boolean res) {
+		this.resultPCR = res;
+	}
+
+	public boolean isHasDisability() {
 		return hasDisability;
 	}
 
 	@Restriction(permission = RestrictionType.PORT)
 	@Restriction(permission = RestrictionType.IMMIGRATION)
 	@Restriction(permission = RestrictionType.HEALTH)
-	public List<String> getSpecialConditions(Object o) {
+	public List<String> getSpecialConditions() {
 		return specialConditions;
 	}
 
 	@Restriction(permission = RestrictionType.HEALTH)
-	public List<String> getAllergies(Object o) {
+	public List<String> getAllergies() {
 		return allergies;
 	}
 }
 
 public class Airport {
+	public static ArrayList<String> getDataAccessible(Method[] methods, String officerType) {
+		ArrayList<String> res = new ArrayList<String>();
+		for (Method method : methods) {
+			if (method.isAnnotationPresent(Restrictions.class)) {
+				Restriction[] r = method.getAnnotation(Restrictions.class).value();
+				for (int i = 0; i < r.length; i++) {
+					String allowedOfficer = r[i].permission().name();
+					if (allowedOfficer.compareToIgnoreCase(officerType) == 0)
+						res.add(method.getName());
+				}
+			}
+			if (method.isAnnotationPresent(Restriction.class)) {
+				RestrictionType r = method.getAnnotation(Restriction.class).permission();
+				if (r.name().compareToIgnoreCase(officerType) == 0)
+					res.add(method.getName());
+			}
+		}
+		return res;
+	}
+
 	public static void main(String[] args) {
 		ArrayList<Person> people = new ArrayList<Person>();
 		people.add(new Person("111", "Gasser", "Egypt", false, false, false, false, new ArrayList<String>(),
@@ -118,9 +142,32 @@ public class Airport {
 		people.add(new Person("444", "Ali", "Egypt", false, false, false, false, new ArrayList<String>(),
 				new ArrayList<String>()));
 
-		Class<Person> annotatedClass = Person.class;
-		Method[] methods = annotatedClass.getMethods();
-		String[] officers = { "Port", "Immigration", "Health", "PCR test" };
-
+		Method[] methods = Person.class.getMethods();
+		String[] officers = { "Port", "Immigration", "Health" };
+		ArrayList<Person> sentToConductor = new ArrayList<Person>();
+		for (String officer : officers) {
+			System.out.println("Arrived at the " + officer + " officer");
+			System.out.println("------------------------------------------");
+			for (Person person : people) {
+				System.out.println("Person " + person.getName() + " arrived");
+				System.out.println("Data seen:");
+				System.out.println(getDataAccessible(methods, officer));
+				if (officer.equals("Health")) {
+					if (person.isHasCough() && person.isHasFever()) {
+						sentToConductor.add(person);
+						System.out.println("~~~~NEEDS TO BE SENT TO CONDUCTOR!");
+					}
+				}
+			}
+		}
+		System.out.println("Arrived at the Conductor officer");
+		System.out.println("------------------------------------------");
+		for (Person person : sentToConductor) {
+			System.out.println("Person " + person.getName() + " arrived");
+			System.out.println("Data seen:");
+			System.out.println(getDataAccessible(methods, "conductor"));
+			person.setResultPCR(false);
+			System.out.println("PCR result negative.");
+		}
 	}
 }
